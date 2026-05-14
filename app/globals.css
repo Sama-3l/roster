@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ─────────────────────────────────────────────────
+   Matching the original Americano HTML design system exactly.
+   ────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg: #0d0d0d;
+  --surface: #161616;
+  --surface2: #1f1f1f;
+  --border: #2a2a2a;
+  --border2: #363636;
+  --accent: #c8f135;
+  --accent2: #a3c920;
+  --text: #f0f0f0;
+  --muted: #666;
+  --muted2: #888;
+  --danger: #ff5c5c;
+  --win: #c8f135;
+  --bye: #f5a623;
+
+  /* Font family CSS variables set by next/font in layout.tsx */
+  --font-mono: var(--font-dm-mono), "DM Mono", monospace;
+  --font-heading: var(--font-unbounded), "Unbounded", sans-serif;
+}
+
+/* ── Base Reset ────────────────────────────────────────────────────
+   Exact replica of the original HTML's reset.
+   ────────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
