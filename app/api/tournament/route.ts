@@ -1,5 +1,12 @@
 /**
- * Tournament API — file-based JSON persistence.
+ * Tournament API — Upstash Redis persistence.
+ *
+ * Stores game state as JSON values keyed by 6-char codes.
+ * Works on Vercel serverless, local dev, and anywhere with env vars set.
+ *
+ * Required env vars:
+ *   UPSTASH_REDIS_REST_URL
+ *   UPSTASH_REDIS_REST_TOKEN
  *
  * - POST /api/tournament         → Create game, returns { code }
  * - GET  /api/tournament?code=XX → Retrieve game by code
@@ -7,34 +14,24 @@
  */
 
 import { NextRequest } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { Redis } from "@upstash/redis";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
-/** Ensure the data directory exists. */
-async function ensureDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch {
-    // already exists
-  }
-}
+/** Key prefix to namespace game data. */
+const PREFIX = "game:";
 
-/** Generate a 6-character alphanumeric code. */
+/** Generate a 6-character alphanumeric code (no ambiguous chars). */
 function generateCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous I/O/0/1
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
-}
-
-function filePath(code: string): string {
-  // Sanitize: only allow alphanumeric
-  const safe = code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-  return path.join(DATA_DIR, `${safe}.json`);
 }
 
 // ── GET — retrieve a game by code ─────────────────────────────────
@@ -49,37 +46,37 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  try {
-    const fp = filePath(code);
-    const data = await fs.readFile(fp, "utf-8");
-    return Response.json({ code: code.toUpperCase(), state: JSON.parse(data) });
-  } catch {
+  const key = PREFIX + code.toUpperCase();
+  const data = await redis.get(key);
+
+  if (!data) {
     return Response.json(
       { error: "Game not found" },
       { status: 404 }
     );
   }
+
+  return Response.json({ code: code.toUpperCase(), state: data });
 }
 
 // ── POST — create a new game ──────────────────────────────────────
 
 export async function POST(request: Request) {
-  await ensureDir();
   const body = await request.json();
 
-  // Generate unique code
+  // Generate a unique code (retry on collision)
   let code: string;
   let attempts = 0;
   do {
     code = generateCode();
     attempts++;
-  } while (
-    attempts < 100 &&
-    await fileExists(filePath(code))
-  );
+    const exists = await redis.exists(PREFIX + code);
+    if (!exists) break;
+  } while (attempts < 100);
 
-  const fp = filePath(code);
-  await fs.writeFile(fp, JSON.stringify(body, null, 2), "utf-8");
+  const key = PREFIX + code;
+  // Store with 30-day TTL (2592000 seconds)
+  await redis.set(key, body, { ex: 2592000 });
 
   return Response.json({ code }, { status: 201 });
 }
@@ -87,7 +84,6 @@ export async function POST(request: Request) {
 // ── PUT — update an existing game ─────────────────────────────────
 
 export async function PUT(request: Request) {
-  await ensureDir();
   const body = await request.json();
   const { code, state } = body;
 
@@ -98,27 +94,18 @@ export async function PUT(request: Request) {
     );
   }
 
-  const fp = filePath(code);
+  const key = PREFIX + code.toUpperCase();
+  const exists = await redis.exists(key);
 
-  if (!(await fileExists(fp))) {
+  if (!exists) {
     return Response.json(
       { error: "Game not found" },
       { status: 404 }
     );
   }
 
-  await fs.writeFile(fp, JSON.stringify(state, null, 2), "utf-8");
+  // Update with refreshed 30-day TTL
+  await redis.set(key, state, { ex: 2592000 });
 
-  return Response.json({ code, updated: true });
-}
-
-// ── Helper ────────────────────────────────────────────────────────
-
-async function fileExists(fp: string): Promise<boolean> {
-  try {
-    await fs.access(fp);
-    return true;
-  } catch {
-    return false;
-  }
+  return Response.json({ code: code.toUpperCase(), updated: true });
 }
