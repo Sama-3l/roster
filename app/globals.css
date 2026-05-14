@@ -18,6 +18,8 @@
   --danger: #ff5c5c;
   --win: #c8f135;
   --bye: #f5a623;
+  --playoff: #a78bfa;
+  --playoff2: #7c3aed;
 
   /* Font family CSS variables set by next/font in layout.tsx */
   --font-mono: var(--font-dm-mono), "DM Mono", monospace;

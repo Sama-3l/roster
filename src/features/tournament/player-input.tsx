@@ -2,11 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useTournament } from "./context";
+import { computePoolMatchCount } from "@/src/domain/knockout";
 import styles from "./tournament.module.css";
 
 /**
  * Player name input, chips, info bar, and generate button.
- * Mirrors the original HTML's input section exactly.
+ * Now mode-aware: shows different info for americano vs knockout.
  */
 export function PlayerInput() {
   const {
@@ -14,7 +15,9 @@ export function PlayerInput() {
     addPlayer,
     removePlayer,
     tournament,
+    knockout,
     generate,
+    mode,
   } = useTournament();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,7 +26,7 @@ export function PlayerInput() {
   const n = players.length;
   const isOdd = n % 2 !== 0;
   const valid = n >= 4;
-  const isActive = !!tournament;
+  const isActive = !!tournament || !!knockout;
 
   function handleAdd() {
     const input = inputRef.current;
@@ -46,28 +49,50 @@ export function PlayerInput() {
     setTimeout(() => setFlashMsg(null), 1500);
   }
 
-  // Build info bar content
+  // Build info bar content (mode-aware)
   function renderInfoBar() {
     if (flashMsg) {
       return <span className={styles.warn}>{flashMsg}</span>;
     }
     if (n === 0) return null;
 
-    const effectiveN = isOdd ? n + 1 : n;
-    const rounds = effectiveN - 1;
-
-    return (
-      <>
-        <span className={styles.count}>{n} players</span>
-        <span>· {rounds} rounds</span>
-        {n < 4 && (
-          <span className={styles.warn}>· need at least 4</span>
-        )}
-        {n >= 4 && isOdd && (
-          <span className={styles.byeNote}>· BYE auto-added</span>
-        )}
-      </>
-    );
+    if (mode === "americano") {
+      const effectiveN = isOdd ? n + 1 : n;
+      const rounds = effectiveN - 1;
+      return (
+        <>
+          <span className={styles.count}>{n} players</span>
+          <span>· {rounds} rounds</span>
+          {n < 4 && (
+            <span className={styles.warn}>· need at least 4</span>
+          )}
+          {n >= 4 && isOdd && (
+            <span className={styles.byeNote}>· BYE auto-added</span>
+          )}
+        </>
+      );
+    } else {
+      // Knockout info
+      const effectiveN = isOdd ? n + 1 : n;
+      const totalPairs = (effectiveN * (effectiveN - 1)) / 2;
+      const poolMatches = computePoolMatchCount(effectiveN);
+      return (
+        <>
+          <span className={styles.count}>{n} players</span>
+          <span>· {poolMatches} pool matches</span>
+          <span>· {totalPairs} partnerships</span>
+          {n < 4 && (
+            <span className={styles.warn}>· need at least 4</span>
+          )}
+          {n >= 4 && isOdd && (
+            <span className={styles.byeNote}>· BYE auto-added</span>
+          )}
+          {n >= 4 && !isOdd && (
+            <span style={{ color: "var(--accent)" }}>· ready!</span>
+          )}
+        </>
+      );
+    }
   }
 
   return (
