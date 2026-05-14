@@ -1,6 +1,7 @@
 import { TournamentProvider } from "@/src/features/tournament/context";
 import { ModeSelector } from "@/src/features/tournament/mode-selector";
 import { PlayerInput } from "@/src/features/tournament/player-input";
+import { GameCode } from "@/src/features/tournament/game-code";
 import { Fixtures } from "@/src/features/tournament/fixtures";
 import { PointsTable } from "@/src/features/tournament/points-table";
 import { KnockoutFixtures } from "@/src/features/tournament/knockout-fixtures";
@@ -23,6 +24,7 @@ export default function Home() {
       </div>
 
       <div className={styles.main}>
+        <GameCode />
         <PlayerInput />
 
         {/* Americano mode */}
@@ -39,3 +41,4 @@ export default function Home() {
     </TournamentProvider>
   );
 }
+

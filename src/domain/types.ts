@@ -92,3 +92,14 @@ export interface KnockoutState {
   poolMatches: PoolMatch[];
   playoff: Playoff;
 }
+
+// ── Persistence ───────────────────────────────────────────────────
+
+/** Serializable snapshot of the entire app state for save/load. */
+export interface GameState {
+  mode: TournamentMode;
+  players: Player[];
+  tournament: Tournament | null;
+  knockout: KnockoutState | null;
+}
+

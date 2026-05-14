@@ -4,10 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type {
+  GameState,
   KnockoutState,
   Match,
   Pair,
@@ -32,7 +35,7 @@ import {
 interface TournamentContextValue {
   // Player management
   players: Player[];
-  addPlayer: (name: string) => string | null; // returns error string or null
+  addPlayer: (name: string) => string | null;
   removePlayer: (name: string) => void;
 
   // Mode
@@ -75,9 +78,42 @@ interface TournamentContextValue {
   // Toast
   toastVisible: boolean;
   showToast: () => void;
+
+  // Persistence
+  gameCode: string | null;
+  loadGame: (code: string) => Promise<string | null>;
 }
 
 const TournamentContext = createContext<TournamentContextValue | null>(null);
+
+// ── Persistence helpers ───────────────────────────────────────────
+
+async function apiCreate(state: GameState): Promise<string> {
+  const res = await fetch("/api/tournament", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(state),
+  });
+  const data = await res.json();
+  return data.code;
+}
+
+async function apiUpdate(code: string, state: GameState): Promise<void> {
+  await fetch("/api/tournament", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, state }),
+  });
+}
+
+async function apiLoad(
+  code: string
+): Promise<{ state: GameState } | { error: string }> {
+  const res = await fetch(`/api/tournament?code=${code}`);
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Failed to load" };
+  return { state: data.state };
+}
 
 // ── Provider ──────────────────────────────────────────────────────
 
@@ -91,12 +127,43 @@ export function TournamentProvider({
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [knockout, setKnockout] = useState<KnockoutState | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
+  const [gameCode, setGameCode] = useState<string | null>(null);
+
+  // Ref to track if we need to persist — avoids saving on load
+  const skipPersistRef = useRef(false);
+
+  // ── Auto-persist on state changes ─────────────────────────────
+
+  const getGameState = useCallback((): GameState => ({
+    mode,
+    players,
+    tournament,
+    knockout,
+  }), [mode, players, tournament, knockout]);
+
+  // Debounced persist: fires whenever state changes
+  useEffect(() => {
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
+      return;
+    }
+    if (!gameCode) return;
+    // Only persist if we have an active game (tournament or knockout generated)
+    if (!tournament && !knockout) return;
+
+    const state = getGameState();
+    const timer = setTimeout(() => {
+      apiUpdate(gameCode, state).catch(console.error);
+    }, 300); // debounce 300ms
+
+    return () => clearTimeout(timer);
+  }, [gameCode, tournament, knockout, getGameState]);
 
   // ── Mode ──────────────────────────────────────────────────────
 
   const setMode = useCallback(
     (m: TournamentMode) => {
-      if (tournament || knockout) return; // locked once generated
+      if (tournament || knockout) return;
       setModeState(m);
     },
     [tournament, knockout]
@@ -121,7 +188,7 @@ export function TournamentProvider({
 
   const removePlayer = useCallback(
     (name: string) => {
-      if (tournament || knockout) return; // can't remove during tournament
+      if (tournament || knockout) return;
       setPlayers((prev) => prev.filter((p) => p !== name));
     },
     [tournament, knockout]
@@ -129,9 +196,12 @@ export function TournamentProvider({
 
   // ── Generate ──────────────────────────────────────────────────
 
-  const generate = useCallback(() => {
+  const generate = useCallback(async () => {
     const n = players.length;
     if (n < 4) return;
+
+    let newTournament: Tournament | null = null;
+    let newKnockout: KnockoutState | null = null;
 
     if (mode === "americano") {
       const isOdd = n % 2 !== 0;
@@ -145,21 +215,56 @@ export function TournamentProvider({
       if (isOdd) {
         assignByeVolunteers(rounds, players);
       }
-      setTournament({ players: [...players], isOdd, rounds });
+      newTournament = { players: [...players], isOdd, rounds };
+      setTournament(newTournament);
     } else {
       const ko = generateKnockout(players);
       resolvePlayoffSeeds(ko);
-      setKnockout(ko);
+      newKnockout = ko;
+      setKnockout(newKnockout);
+    }
+
+    // Create the game on the server and get the code
+    try {
+      const state: GameState = {
+        mode,
+        players: [...players],
+        tournament: newTournament,
+        knockout: newKnockout,
+      };
+      const code = await apiCreate(state);
+      setGameCode(code);
+    } catch (err) {
+      console.error("Failed to save game:", err);
     }
   }, [players, mode]);
 
-  // ── Americano match operations (unchanged) ────────────────────
+  // ── Load game ─────────────────────────────────────────────────
+
+  const loadGame = useCallback(
+    async (code: string): Promise<string | null> => {
+      const result = await apiLoad(code);
+      if ("error" in result) return result.error;
+
+      const { state } = result;
+      skipPersistRef.current = true;
+
+      setModeState(state.mode);
+      setPlayers(state.players);
+      setTournament(state.tournament);
+      setKnockout(state.knockout);
+      setGameCode(code.toUpperCase());
+      return null;
+    },
+    []
+  );
+
+  // ── Americano match operations ────────────────────────────────
 
   const adjustScore = useCallback(
     (roundIdx: number, matchIdx: number, side: 1 | 2, delta: number) => {
       setTournament((prev) => {
         if (!prev) return prev;
-        // Deep clone the specific match
         const newRounds = prev.rounds.map((rd, ri) => {
           if (ri !== roundIdx) return rd;
           return {
@@ -271,7 +376,6 @@ export function TournamentProvider({
         const m = ko.poolMatches[poolIdx];
         if (!m) return prev;
 
-        // Snapshot live 5th & 6th from prior matches
         const prevMatches = ko.poolMatches.slice(0, poolIdx);
         const tempKo = { ...ko, poolMatches: prevMatches };
         const standings = computeKnockoutPoints(tempKo);
@@ -298,7 +402,6 @@ export function TournamentProvider({
         if (!m) return prev;
         m.locked = false;
 
-        // Unlocking a semi → reset final and 3rd place
         if (stage === "playoff" && (id === "semi1" || id === "semi2")) {
           ko.playoff.final.locked = false;
           ko.playoff.third.locked = false;
@@ -348,6 +451,8 @@ export function TournamentProvider({
       standings,
       toastVisible,
       showToast,
+      gameCode,
+      loadGame,
     }),
     [
       players,
@@ -368,6 +473,8 @@ export function TournamentProvider({
       standings,
       toastVisible,
       showToast,
+      gameCode,
+      loadGame,
     ]
   );
 

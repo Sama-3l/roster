@@ -837,3 +837,90 @@
   margin-top: 8px;
 }
 
+/* ── Game Code ───────────────────────────────────────────────────── */
+
+.gameCodeSection {
+  margin-bottom: 1rem;
+}
+
+.gameCodeDisplay {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.gameCodeLabel {
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.gameCodeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gameCodeValue {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+}
+
+.gameCodeCopy {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--muted2);
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.gameCodeCopy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.gameCodeHint {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+}
+
+.loadGameSection {
+  margin-bottom: 12px;
+}
+
+.loadGameDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.loadGameLine {
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+.loadGameOr {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+
