@@ -95,15 +95,26 @@ async function apiCreate(state: GameState): Promise<string> {
     body: JSON.stringify(state),
   });
   const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `API returned ${res.status}`);
+  }
   return data.code;
 }
 
 async function apiUpdate(code: string, state: GameState): Promise<void> {
-  await fetch("/api/tournament", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, state }),
-  });
+  try {
+    const res = await fetch("/api/tournament", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, state }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      console.error("apiUpdate failed:", data.error || res.status);
+    }
+  } catch (err) {
+    console.error("apiUpdate network error:", err);
+  }
 }
 
 async function apiLoad(
