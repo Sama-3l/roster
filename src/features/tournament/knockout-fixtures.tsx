@@ -107,9 +107,10 @@ function PoolMatchCard({ mi }: { mi: number }) {
     const prevMatches = knockout.poolMatches.slice(0, mi);
     const tempKo = { ...knockout, poolMatches: prevMatches };
     const standings = computeKnockoutPoints(tempKo);
+    const len = standings.length;
     byeOpponents = [
-      standings[4] ? standings[4].name : null,
-      standings[5] ? standings[5].name : null,
+      len >= 2 ? standings[len - 2].name : null,
+      len >= 1 ? standings[len - 1].name : null,
     ];
   }
 
@@ -214,7 +215,7 @@ function PoolMatchCard({ mi }: { mi: number }) {
           Match {mi + 1}
           {m.isByePool && (
             <span style={{ color: "var(--bye)", fontSize: "0.55rem", marginLeft: 4 }}>
-              5th vs 6th (BYE)
+              Last 2 (BYE)
             </span>
           )}
         </span>

@@ -390,11 +390,12 @@ export function TournamentProvider({
         const prevMatches = ko.poolMatches.slice(0, poolIdx);
         const tempKo = { ...ko, poolMatches: prevMatches };
         const standings = computeKnockoutPoints(tempKo);
-        const p5 = standings[4] ? standings[4].name : null;
-        const p6 = standings[5] ? standings[5].name : null;
-        if (!p5 || !p6) return prev;
+        const len = standings.length;
+        const pLast2 = len >= 2 ? standings[len - 2].name : null;
+        const pLast1 = len >= 1 ? standings[len - 1].name : null;
+        if (!pLast2 || !pLast1) return prev;
 
-        m.pair2 = [p5, p6];
+        m.pair2 = [pLast2, pLast1];
         m.isByePool = true;
         m.locked = true;
         resolvePlayoffSeeds(ko);
