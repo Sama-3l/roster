@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return Response.json({ code: code.toUpperCase(), state: data.state });
+    return Response.json({ code: code.toUpperCase(), state: (data as any).state });
   } catch (err) {
     console.error("GET /api/tournament error:", err);
     return Response.json(
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
       const { error } = await supabase
         .from("games")
-        .insert({ code, state: body as Record<string, unknown> });
+        .insert({ code, state: body } as any);
 
       if (!error) {
         inserted = true;
@@ -141,7 +141,7 @@ export async function PUT(request: Request) {
     const { error } = await supabase
       .from("games")
       .upsert(
-        { code: upperCode, state: state as Record<string, unknown>, updated_at: new Date().toISOString() },
+        { code: upperCode, state, updated_at: new Date().toISOString() } as any,
         { onConflict: "code" }
       );
 
