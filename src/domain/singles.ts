@@ -98,19 +98,17 @@ export function computeSinglesStandings(
       // Player 1 wins
       wins[m.player1]++;
       losses[m.player2]++;
-      pts[m.player1] += 3;
     } else if (m.score2 > m.score1) {
       // Player 2 wins
       wins[m.player2]++;
       losses[m.player1]++;
-      pts[m.player2] += 3;
     } else {
       // Draw
       draws[m.player1]++;
       draws[m.player2]++;
-      pts[m.player1] += 1;
-      pts[m.player2] += 1;
     }
+    pts[m.player1] += m.score1;
+    pts[m.player2] += m.score2;
   });
 
   return Object.entries(pts)
