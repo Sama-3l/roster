@@ -1,12 +1,20 @@
 /**
- * Tournament API — Upstash Redis persistence.
+ * Tournament API — Supabase persistence.
  *
- * Stores game state as JSON values keyed by 6-char codes.
- * Works on Vercel serverless, local dev, and anywhere with env vars set.
+ * Stores game state as JSONB rows in the `games` table, keyed by
+ * 6-char alphanumeric codes.
  *
  * Required env vars:
- *   UPSTASH_REDIS_REST_URL
- *   UPSTASH_REDIS_REST_TOKEN
+ *   NEXT_PUBLIC_SUPABASE_URL
+ *   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ *
+ * Required Supabase table:
+ *   create table public.games (
+ *     code text primary key,
+ *     state jsonb not null,
+ *     created_at timestamptz default now(),
+ *     updated_at timestamptz default now()
+ *   );
  *
  * - POST /api/tournament         → Create game, returns { code }
  * - GET  /api/tournament?code=XX → Retrieve game by code
@@ -14,27 +22,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { Redis } from "@upstash/redis";
-
-/** Key prefix to namespace game data. */
-const PREFIX = "game:";
-
-/** Lazy singleton — avoids crash at build time if env vars are missing. */
-let _redis: Redis | null = null;
-
-function getRedis(): Redis {
-  if (!_redis) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) {
-      throw new Error(
-        "Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN env vars"
-      );
-    }
-    _redis = new Redis({ url, token });
-  }
-  return _redis;
-}
+import { getSupabase } from "@/src/lib/supabase";
 
 /** Generate a 6-character alphanumeric code (no ambiguous chars). */
 function generateCode(): string {
@@ -59,22 +47,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const redis = getRedis();
-    const key = PREFIX + code.toUpperCase();
-    const data = await redis.get(key);
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("games")
+      .select("state")
+      .eq("code", code.toUpperCase())
+      .single();
 
-    if (!data) {
+    if (error || !data) {
       return Response.json(
         { error: "Game not found" },
         { status: 404 }
       );
     }
 
-    return Response.json({ code: code.toUpperCase(), state: data });
+    return Response.json({ code: code.toUpperCase(), state: data.state });
   } catch (err) {
     console.error("GET /api/tournament error:", err);
     return Response.json(
-      { error: "Server error — Redis may not be configured" },
+      { error: "Server error — Supabase may not be configured" },
       { status: 500 }
     );
   }
@@ -84,28 +75,46 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
-    const redis = getRedis();
+    const supabase = getSupabase();
     const body = await request.json();
 
     // Generate a unique code (retry on collision)
-    let code: string;
+    let code: string = "";
     let attempts = 0;
-    do {
+    let inserted = false;
+
+    while (attempts < 100) {
       code = generateCode();
       attempts++;
-      const exists = await redis.exists(PREFIX + code);
-      if (!exists) break;
-    } while (attempts < 100);
 
-    const key = PREFIX + code;
-    // Store with 30-day TTL (2592000 seconds)
-    await redis.set(key, body, { ex: 2592000 });
+      const { error } = await supabase
+        .from("games")
+        .insert({ code, state: body as Record<string, unknown> });
+
+      if (!error) {
+        inserted = true;
+        break;
+      }
+
+      // If it's a unique violation, retry with a new code
+      if (error.code === "23505") continue;
+
+      // Any other error, throw
+      throw error;
+    }
+
+    if (!inserted) {
+      return Response.json(
+        { error: "Could not generate unique code" },
+        { status: 500 }
+      );
+    }
 
     return Response.json({ code }, { status: 201 });
   } catch (err) {
     console.error("POST /api/tournament error:", err);
     return Response.json(
-      { error: "Server error — Redis may not be configured" },
+      { error: "Server error — Supabase may not be configured" },
       { status: 500 }
     );
   }
@@ -115,7 +124,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const redis = getRedis();
+    const supabase = getSupabase();
     const body = await request.json();
     const { code, state } = body;
 
@@ -126,16 +135,23 @@ export async function PUT(request: Request) {
       );
     }
 
-    const key = PREFIX + code.toUpperCase();
+    const upperCode = code.toUpperCase();
 
-    // Upsert — just write, don't require existence for resilience
-    await redis.set(key, state, { ex: 2592000 });
+    // Upsert for resilience — creates if missing, updates if exists
+    const { error } = await supabase
+      .from("games")
+      .upsert(
+        { code: upperCode, state: state as Record<string, unknown>, updated_at: new Date().toISOString() },
+        { onConflict: "code" }
+      );
 
-    return Response.json({ code: code.toUpperCase(), updated: true });
+    if (error) throw error;
+
+    return Response.json({ code: upperCode, updated: true });
   } catch (err) {
     console.error("PUT /api/tournament error:", err);
     return Response.json(
-      { error: "Server error — Redis may not be configured" },
+      { error: "Server error — Supabase may not be configured" },
       { status: 500 }
     );
   }
