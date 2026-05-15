@@ -69,12 +69,11 @@ export interface PlayoffMatch {
   label: string;
 }
 
-/** The four playoff matches. */
+/** The three playoff matches (round-robin among top 4). */
 export interface Playoff {
-  semi1: PlayoffMatch;
-  semi2: PlayoffMatch;
-  final: PlayoffMatch;
-  third: PlayoffMatch;
+  match1: PlayoffMatch;
+  match2: PlayoffMatch;
+  match3: PlayoffMatch;
 }
 
 /** Knockout standings row with W/L/D tracking. */

@@ -163,10 +163,9 @@ export function generateKnockout(playerNames: Player[]): KnockoutState {
   }
 
   const playoff = {
-    semi1: makePlayoffMatch("Semi-final 1"),
-    semi2: makePlayoffMatch("Semi-final 2"),
-    final: makePlayoffMatch("Final"),
-    third: makePlayoffMatch("3rd place"),
+    match1: makePlayoffMatch("Playoff 1 (Seed 1&2 vs 3&4)"),
+    match2: makePlayoffMatch("Playoff 2 (Seed 1&3 vs 2&4)"),
+    match3: makePlayoffMatch("Playoff 3 (Seed 1&4 vs 2&3)"),
   };
 
   return {
@@ -256,7 +255,8 @@ function assignKnockoutByeVolunteers(
 // ── Knockout standings computation ────────────────────────────────
 
 export function computeKnockoutPoints(
-  state: KnockoutState
+  state: KnockoutState,
+  opts?: { excludePlayoffs?: boolean }
 ): KnockoutStanding[] {
   const pts: Record<string, number> = {};
   const wins: Record<string, number> = {};
@@ -276,7 +276,8 @@ export function computeKnockoutPoints(
     score2: number,
     locked: boolean,
     pair1Bye?: (string | null)[],
-    pair2Bye?: (string | null)[]
+    pair2Bye?: (string | null)[],
+    isByePool?: boolean
   ) => {
     if (!locked) return;
 
@@ -291,7 +292,8 @@ export function computeKnockoutPoints(
         .filter((p) => p !== null && p !== "BYE" && pts[p as string] !== undefined) as string[];
 
     const realP1 = resolveReal(pair1, pair1Bye);
-    const realP2 = resolveReal(pair2, pair2Bye);
+    // If it's a double BYE match, the volunteers don't get points
+    const realP2 = isByePool ? [] : resolveReal(pair2, pair2Bye);
 
     realP1.forEach((p) => {
       pts[p] += score1;
@@ -313,13 +315,15 @@ export function computeKnockoutPoints(
   };
 
   state.poolMatches.forEach((m) => {
-    processMatch(m.pair1, m.pair2, m.score1, m.score2, m.locked, m.pair1Bye, m.pair2Bye);
+    processMatch(m.pair1, m.pair2, m.score1, m.score2, m.locked, m.pair1Bye, m.pair2Bye, m.isByePool);
   });
 
-  const { semi1, semi2, third, final } = state.playoff;
-  [semi1, semi2, third, final].forEach((m) => {
-    processMatch(m.pair1, m.pair2, m.score1, m.score2, m.locked);
-  });
+  if (!opts?.excludePlayoffs) {
+    const { match1, match2, match3 } = state.playoff;
+    [match1, match2, match3].forEach((m) => {
+      processMatch(m.pair1, m.pair2, m.score1, m.score2, m.locked);
+    });
+  }
 
   return Object.entries(pts)
     .map(([name, p]) => ({
@@ -335,39 +339,34 @@ export function computeKnockoutPoints(
 // ── Playoff seed resolution ───────────────────────────────────────
 
 export function resolvePlayoffSeeds(state: KnockoutState): void {
-  const standings = computeKnockoutPoints(state);
+  const allLocked = state.poolMatches.every((m) => m.locked);
+
+  if (!allLocked) {
+    // Clear playoff matches if pool is not complete
+    const reset = (m: PlayoffMatch) => {
+      m.pair1 = [null, null];
+      m.pair2 = [null, null];
+    };
+    reset(state.playoff.match1);
+    reset(state.playoff.match2);
+    reset(state.playoff.match3);
+    return;
+  }
+
+  // Use only pool match points for seeding
+  const standings = computeKnockoutPoints(state, { excludePlayoffs: true });
   const get = (i: number): Player | null =>
     standings[i] ? standings[i].name : null;
 
-  // Semi 1: seeds 1&4 vs 2&3
-  state.playoff.semi1.pair1 = [get(0), get(3)];
-  state.playoff.semi1.pair2 = [get(1), get(2)];
-  // Semi 2: seeds 5&8 vs 6&7
-  state.playoff.semi2.pair1 = [get(4), get(7)];
-  state.playoff.semi2.pair2 = [get(5), get(6)];
+  // Round-robin for top 4:
+  state.playoff.match1.pair1 = [get(0), get(1)];
+  state.playoff.match1.pair2 = [get(2), get(3)];
 
-  if (state.playoff.semi1.locked && state.playoff.semi2.locked) {
-    const [w1, l1] = getWinnerLoser(state.playoff.semi1);
-    const [w2, l2] = getWinnerLoser(state.playoff.semi2);
-    state.playoff.final.pair1 = w1;
-    state.playoff.final.pair2 = w2;
-    state.playoff.third.pair1 = l1;
-    state.playoff.third.pair2 = l2;
-  } else if (state.playoff.semi1.locked) {
-    const [w1, l1] = getWinnerLoser(state.playoff.semi1);
-    state.playoff.final.pair1 = w1;
-    state.playoff.third.pair1 = l1;
-    state.playoff.final.pair2 = [null, null];
-    state.playoff.third.pair2 = [null, null];
-  }
-}
+  state.playoff.match2.pair1 = [get(0), get(2)];
+  state.playoff.match2.pair2 = [get(1), get(3)];
 
-export function getWinnerLoser(
-  m: PlayoffMatch
-): [[Player | null, Player | null], [Player | null, Player | null]] {
-  if (!m.locked) return [[null, null], [null, null]];
-  if (m.score1 >= m.score2) return [m.pair1, m.pair2];
-  return [m.pair2, m.pair1];
+  state.playoff.match3.pair1 = [get(0), get(3)];
+  state.playoff.match3.pair2 = [get(1), get(2)];
 }
 
 // ── Count partnerships covered ────────────────────────────────────

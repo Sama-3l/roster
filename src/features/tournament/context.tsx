@@ -429,12 +429,12 @@ export function TournamentProvider({
         const m = ko.poolMatches[poolIdx];
         if (!m) return prev;
 
-        const prevMatches = ko.poolMatches.slice(0, poolIdx);
-        const tempKo = { ...ko, poolMatches: prevMatches };
-        const standings = computeKnockoutPoints(tempKo);
-        const len = standings.length;
-        const pLast2 = len >= 2 ? standings[len - 2].name : null;
-        const pLast1 = len >= 1 ? standings[len - 1].name : null;
+        const p1Set = new Set(m.pair1.filter((p) => p !== "BYE"));
+        const available = ko.players.filter((p) => !p1Set.has(p));
+        const shuffled = [...available].sort(() => Math.random() - 0.5);
+        
+        const pLast2 = shuffled[0] || null;
+        const pLast1 = shuffled[1] || null;
         if (!pLast2 || !pLast1) return prev;
 
         m.pair2 = [pLast2, pLast1];
@@ -456,14 +456,7 @@ export function TournamentProvider({
         if (!m) return prev;
         m.locked = false;
 
-        if (stage === "playoff" && (id === "semi1" || id === "semi2")) {
-          ko.playoff.final.locked = false;
-          ko.playoff.third.locked = false;
-          ko.playoff.final.score1 = 0;
-          ko.playoff.final.score2 = 0;
-          ko.playoff.third.score1 = 0;
-          ko.playoff.third.score2 = 0;
-        }
+
         resolvePlayoffSeeds(ko);
         return ko;
       });
@@ -641,10 +634,9 @@ function deepCloneKo(ko: KnockoutState): KnockoutState {
       pair2Bye: m.pair2Bye ? [...m.pair2Bye] : undefined,
     })),
     playoff: {
-      semi1: { ...ko.playoff.semi1, pair1: [...ko.playoff.semi1.pair1] as [string | null, string | null], pair2: [...ko.playoff.semi1.pair2] as [string | null, string | null] },
-      semi2: { ...ko.playoff.semi2, pair1: [...ko.playoff.semi2.pair1] as [string | null, string | null], pair2: [...ko.playoff.semi2.pair2] as [string | null, string | null] },
-      final: { ...ko.playoff.final, pair1: [...ko.playoff.final.pair1] as [string | null, string | null], pair2: [...ko.playoff.final.pair2] as [string | null, string | null] },
-      third: { ...ko.playoff.third, pair1: [...ko.playoff.third.pair1] as [string | null, string | null], pair2: [...ko.playoff.third.pair2] as [string | null, string | null] },
+      match1: { ...ko.playoff.match1, pair1: [...ko.playoff.match1.pair1] as [string | null, string | null], pair2: [...ko.playoff.match1.pair2] as [string | null, string | null] },
+      match2: { ...ko.playoff.match2, pair1: [...ko.playoff.match2.pair1] as [string | null, string | null], pair2: [...ko.playoff.match2.pair2] as [string | null, string | null] },
+      match3: { ...ko.playoff.match3, pair1: [...ko.playoff.match3.pair1] as [string | null, string | null], pair2: [...ko.playoff.match3.pair2] as [string | null, string | null] },
     },
   };
 }

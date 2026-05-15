@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabase } from "@/src/lib/supabase";
+import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       existing.forEach((row) => existingMap.set((row as any).player_name, row));
     }
+    console.log(existing)
 
     // Prepare upsert payload
     const upsertPayload = activeStats.map((s) => {
@@ -48,6 +50,8 @@ export async function POST(request: NextRequest) {
       .upsert(upsertPayload as any, { onConflict: "player_name" });
 
     if (upsertError) throw upsertError;
+
+    revalidatePath("/leaderboard");
 
     return Response.json({ success: true });
   } catch (err) {

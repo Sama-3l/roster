@@ -6,7 +6,7 @@ import { Fixtures } from "@/src/features/tournament/fixtures";
 import { PointsTable } from "@/src/features/tournament/points-table";
 import { KnockoutFixtures } from "@/src/features/tournament/knockout-fixtures";
 import { KnockoutStandings } from "@/src/features/tournament/knockout-standings";
-import { BracketGrid } from "@/src/features/tournament/bracket-grid";
+
 import { SinglesFixtures } from "@/src/features/tournament/singles-fixtures";
 import { SinglesStandings } from "@/src/features/tournament/singles-standings";
 import { Toast } from "@/src/features/tournament/toast";
@@ -42,7 +42,6 @@ export default function Home() {
         {/* Knockout mode */}
         <KnockoutFixtures />
         <KnockoutStandings />
-        <BracketGrid />
 
         {/* Singles mode */}
         <SinglesFixtures />

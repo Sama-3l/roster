@@ -47,7 +47,7 @@ export function KnockoutFixtures() {
 
       {/* Playoff matches */}
       <div className={styles.fixturesScroll}>
-        {(["semi1", "semi2", "final", "third"] as const).map((key) => (
+        {(["match1", "match2", "match3"] as const).map((key) => (
           <PlayoffMatchCard key={key} matchKey={key} />
         ))}
       </div>
@@ -101,17 +101,11 @@ function PoolMatchCard({ mi }: { mi: number }) {
     });
   }
 
-  // For isByePool: compute live 5th & 6th from prior matches
   let byeOpponents: [string | null, string | null] = [null, null];
   if (m.isByePool && !m.locked) {
-    const prevMatches = knockout.poolMatches.slice(0, mi);
-    const tempKo = { ...knockout, poolMatches: prevMatches };
-    const standings = computeKnockoutPoints(tempKo);
-    const len = standings.length;
-    byeOpponents = [
-      len >= 2 ? standings[len - 2].name : null,
-      len >= 1 ? standings[len - 1].name : null,
-    ];
+    // We don't know who they are until save, but we know they will be available.
+    // The context will assign 2 random players who are not in pair1.
+    byeOpponents = ["Random Player 1", "Random Player 2"];
   }
 
   // Build right team for isByePool
@@ -127,7 +121,7 @@ function PoolMatchCard({ mi }: { mi: number }) {
             </span>
           ) : (
             <span key={i} className={`${styles.teamPlayer} ${styles.tbd}`}>
-              TBD — finish prior matches
+              Assigned on save
             </span>
           )
         )}
@@ -162,15 +156,9 @@ function PoolMatchCard({ mi }: { mi: number }) {
       </div>
     );
   } else if (m.isByePool) {
-    const ready = byeOpponents[0] && byeOpponents[1];
-    if (!ready) {
-      scoreHtml = (
-        <div className={styles.scoreRow}>
-          <span style={{ fontSize: "0.7rem", color: "var(--bye)" }}>
-            Complete the first {mi} matches to reveal opponents
-          </span>
-        </div>
-      );
+    if (false) {
+      // Obsolete condition since we don't depend on prior matches anymore
+      scoreHtml = null;
     } else {
       scoreHtml = (
         <div className={styles.scoreRow}>
@@ -240,7 +228,7 @@ function PoolMatchCard({ mi }: { mi: number }) {
 function PlayoffMatchCard({
   matchKey,
 }: {
-  matchKey: "semi1" | "semi2" | "final" | "third";
+  matchKey: "match1" | "match2" | "match3";
 }) {
   const { knockout, koAdjust, koLock, koUnlock } = useTournament();
   if (!knockout) return null;
