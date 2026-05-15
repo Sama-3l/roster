@@ -269,41 +269,56 @@ export function computeKnockoutPoints(
     draws[p] = 0;
   });
 
-  state.poolMatches.forEach((m) => {
-    if (!m.locked) return;
-    const s1 = m.score1;
-    const s2 = m.score2;
+  const processMatch = (
+    pair1: (string | null)[],
+    pair2: (string | null)[],
+    score1: number,
+    score2: number,
+    locked: boolean,
+    pair1Bye?: (string | null)[],
+    pair2Bye?: (string | null)[]
+  ) => {
+    if (!locked) return;
 
     const resolveReal = (
-      pair: [string, string],
+      pair: (string | null)[],
       byeArr?: (string | null)[]
     ): string[] =>
       pair
         .map((p, si) =>
           p === "BYE" && byeArr && byeArr[si] ? byeArr[si]! : p
         )
-        .filter((p) => p !== "BYE" && pts[p] !== undefined);
+        .filter((p) => p !== null && p !== "BYE" && pts[p as string] !== undefined) as string[];
 
-    const realP1 = resolveReal(m.pair1, m.pair1Bye);
-    const realP2 = resolveReal(m.pair2, m.pair2Bye);
+    const realP1 = resolveReal(pair1, pair1Bye);
+    const realP2 = resolveReal(pair2, pair2Bye);
 
     realP1.forEach((p) => {
-      pts[p] += s1;
+      pts[p] += score1;
     });
     realP2.forEach((p) => {
-      pts[p] += s2;
+      pts[p] += score2;
     });
 
-    if (s1 > s2) {
+    if (score1 > score2) {
       realP1.forEach((p) => wins[p]++);
       realP2.forEach((p) => losses[p]++);
-    } else if (s2 > s1) {
+    } else if (score2 > score1) {
       realP2.forEach((p) => wins[p]++);
       realP1.forEach((p) => losses[p]++);
     } else {
       realP1.forEach((p) => draws[p]++);
       realP2.forEach((p) => draws[p]++);
     }
+  };
+
+  state.poolMatches.forEach((m) => {
+    processMatch(m.pair1, m.pair2, m.score1, m.score2, m.locked, m.pair1Bye, m.pair2Bye);
+  });
+
+  const { semi1, semi2, third, final } = state.playoff;
+  [semi1, semi2, third, final].forEach((m) => {
+    processMatch(m.pair1, m.pair2, m.score1, m.score2, m.locked);
   });
 
   return Object.entries(pts)

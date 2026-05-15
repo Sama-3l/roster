@@ -22,6 +22,23 @@ export function SinglesStandings() {
       )
       .join("\n");
     await copyToClipboard(text);
+
+    // Save stats to database
+    try {
+      const statsPayload = singlesStandings.map((s) => ({
+        playerName: s.name,
+        points: s.pts,
+        matches: s.matchesPlayed || 0,
+      }));
+      await fetch("/api/stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stats: statsPayload }),
+      });
+    } catch (err) {
+      console.error("Failed to update stats:", err);
+    }
+
     showToast();
   }
 

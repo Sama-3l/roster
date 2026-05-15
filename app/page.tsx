@@ -10,6 +10,7 @@ import { BracketGrid } from "@/src/features/tournament/bracket-grid";
 import { SinglesFixtures } from "@/src/features/tournament/singles-fixtures";
 import { SinglesStandings } from "@/src/features/tournament/singles-standings";
 import { Toast } from "@/src/features/tournament/toast";
+import Link from "next/link";
 import styles from "@/src/features/tournament/tournament.module.css";
 
 export default function Home() {
@@ -19,8 +20,13 @@ export default function Home() {
         <div className={styles.logo}>
           ROSTER<span className={styles.logoSuffix}>/badminton</span>
         </div>
-        <div className={styles.tagline}>
-          Americano · Knockout · Singles
+        <div className={styles.taglineRow}>
+          <div className={styles.tagline}>
+            Americano · Knockout · Singles
+          </div>
+          <Link href="/leaderboard" className={styles.leaderboardLink}>
+            Leaderboard ↗
+          </Link>
         </div>
         <ModeSelector />
       </div>

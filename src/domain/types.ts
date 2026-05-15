@@ -40,6 +40,7 @@ export interface Tournament {
 export interface Standing {
   name: Player;
   pts: number;
+  matchesPlayed?: number;
 }
 
 // ── Knockout-specific types ───────────────────────────────────────

@@ -30,6 +30,23 @@ export function KnockoutStandings() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
+
+    // Save stats to database
+    try {
+      const statsPayload = standings.map((s) => ({
+        playerName: s.name,
+        points: s.pts,
+        matches: s.w + s.l + s.d, // Total matches played
+      }));
+      await fetch("/api/stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stats: statsPayload }),
+      });
+    } catch (err) {
+      console.error("Failed to update stats:", err);
+    }
+
     showToast();
   }
 

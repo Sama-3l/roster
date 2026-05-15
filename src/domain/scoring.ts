@@ -13,8 +13,10 @@ import type { Standing, Tournament } from "./types";
  */
 export function computePoints(tournament: Tournament): Standing[] {
   const pts: Record<string, number> = {};
+  const matchesPlayed: Record<string, number> = {};
   tournament.players.forEach((p) => {
     pts[p] = 0;
+    matchesPlayed[p] = 0;
   });
 
   tournament.rounds.forEach((rd) => {
@@ -30,15 +32,21 @@ export function computePoints(tournament: Tournament): Standing[] {
       );
 
       real1.forEach((p) => {
-        if (pts[p] !== undefined) pts[p] += m.score1;
+        if (pts[p] !== undefined) {
+          pts[p] += m.score1;
+          matchesPlayed[p]++;
+        }
       });
       real2.forEach((p) => {
-        if (pts[p] !== undefined) pts[p] += m.score2;
+        if (pts[p] !== undefined) {
+          pts[p] += m.score2;
+          matchesPlayed[p]++;
+        }
       });
     });
   });
 
   return Object.entries(pts)
-    .map(([name, p]) => ({ name, pts: p }))
+    .map(([name, p]) => ({ name, pts: p, matchesPlayed: matchesPlayed[name] }))
     .sort((a, b) => b.pts - a.pts);
 }
