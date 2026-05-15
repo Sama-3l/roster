@@ -17,10 +17,18 @@ import type {
   Player,
   PoolMatch,
   Round,
+  SinglesMatch,
+  SinglesStanding,
+  SinglesState,
   Standing,
   Tournament,
   TournamentMode,
 } from "@/src/domain/types";
+import {
+  generateSinglesMatches,
+  computeSinglesStandings,
+  matchesPerLeg,
+} from "@/src/domain/singles";
 import { generateMatches, generateRoundPairs } from "@/src/domain/round-robin";
 import { assignByeVolunteers } from "@/src/domain/bye-assignment";
 import { computePoints } from "@/src/domain/scoring";
@@ -48,6 +56,11 @@ interface TournamentContextValue {
   // Knockout
   knockout: KnockoutState | null;
 
+  // Singles
+  singles: SinglesState | null;
+  meetingsCount: number;
+  setMeetingsCount: (n: number) => void;
+
   // Generate (dispatches based on mode)
   generate: () => void;
 
@@ -72,8 +85,14 @@ interface TournamentContextValue {
   koLockBye: (id: string) => void;
   koUnlock: (stage: "pool" | "playoff", id: string) => void;
 
+  // Singles match operations
+  singlesAdjust: (matchIdx: number, side: 1 | 2, delta: number) => void;
+  singlesLock: (matchIdx: number) => void;
+  singlesUnlock: (matchIdx: number) => void;
+
   // Derived
   standings: Standing[];
+  singlesStandings: SinglesStanding[];
 
   // Toast
   toastVisible: boolean;
@@ -82,6 +101,9 @@ interface TournamentContextValue {
   // Persistence
   gameCode: string | null;
   loadGame: (code: string) => Promise<string | null>;
+
+  // Reset
+  resetGame: () => void;
 }
 
 const TournamentContext = createContext<TournamentContextValue | null>(null);
@@ -137,8 +159,18 @@ export function TournamentProvider({
   const [mode, setModeState] = useState<TournamentMode>("americano");
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [knockout, setKnockout] = useState<KnockoutState | null>(null);
+  const [singles, setSingles] = useState<SinglesState | null>(null);
+  const [meetingsCount, setMeetingsCountRaw] = useState(1);
   const [toastVisible, setToastVisible] = useState(false);
   const [gameCode, setGameCode] = useState<string | null>(null);
+
+  const setMeetingsCount = useCallback(
+    (n: number) => {
+      if (singles) return; // locked once generated
+      setMeetingsCountRaw(Math.max(1, Math.min(5, n)));
+    },
+    [singles]
+  );
 
   // Ref to track if we need to persist — avoids saving on load
   const skipPersistRef = useRef(false);
@@ -150,7 +182,8 @@ export function TournamentProvider({
     players,
     tournament,
     knockout,
-  }), [mode, players, tournament, knockout]);
+    singles,
+  }), [mode, players, tournament, knockout, singles]);
 
   // Debounced persist: fires whenever state changes
   useEffect(() => {
@@ -159,8 +192,8 @@ export function TournamentProvider({
       return;
     }
     if (!gameCode) return;
-    // Only persist if we have an active game (tournament or knockout generated)
-    if (!tournament && !knockout) return;
+    // Only persist if we have an active game (tournament, knockout, or singles generated)
+    if (!tournament && !knockout && !singles) return;
 
     const state = getGameState();
     const timer = setTimeout(() => {
@@ -168,16 +201,16 @@ export function TournamentProvider({
     }, 300); // debounce 300ms
 
     return () => clearTimeout(timer);
-  }, [gameCode, tournament, knockout, getGameState]);
+  }, [gameCode, tournament, knockout, singles, getGameState]);
 
   // ── Mode ──────────────────────────────────────────────────────
 
   const setMode = useCallback(
     (m: TournamentMode) => {
-      if (tournament || knockout) return;
+      if (tournament || knockout || singles) return;
       setModeState(m);
     },
-    [tournament, knockout]
+    [tournament, knockout, singles]
   );
 
   // ── Player management ─────────────────────────────────────────
@@ -199,20 +232,22 @@ export function TournamentProvider({
 
   const removePlayer = useCallback(
     (name: string) => {
-      if (tournament || knockout) return;
+      if (tournament || knockout || singles) return;
       setPlayers((prev) => prev.filter((p) => p !== name));
     },
-    [tournament, knockout]
+    [tournament, knockout, singles]
   );
 
   // ── Generate ──────────────────────────────────────────────────
 
   const generate = useCallback(async () => {
     const n = players.length;
-    if (n < 4) return;
+    if (mode === "singles" && n < 2) return;
+    if (mode !== "singles" && n < 4) return;
 
     let newTournament: Tournament | null = null;
     let newKnockout: KnockoutState | null = null;
+    let newSingles: SinglesState | null = null;
 
     if (mode === "americano") {
       const isOdd = n % 2 !== 0;
@@ -228,11 +263,16 @@ export function TournamentProvider({
       }
       newTournament = { players: [...players], isOdd, rounds };
       setTournament(newTournament);
-    } else {
+    } else if (mode === "knockout") {
       const ko = generateKnockout(players);
       resolvePlayoffSeeds(ko);
       newKnockout = ko;
       setKnockout(newKnockout);
+    } else {
+      // singles
+      const matches = generateSinglesMatches(players, meetingsCount);
+      newSingles = { players: [...players], matches, meetings: meetingsCount };
+      setSingles(newSingles);
     }
 
     // Create the game on the server and get the code
@@ -242,13 +282,14 @@ export function TournamentProvider({
         players: [...players],
         tournament: newTournament,
         knockout: newKnockout,
+        singles: newSingles,
       };
       const code = await apiCreate(state);
       setGameCode(code);
     } catch (err) {
       console.error("Failed to save game:", err);
     }
-  }, [players, mode]);
+  }, [players, mode, meetingsCount]);
 
   // ── Load game ─────────────────────────────────────────────────
 
@@ -264,6 +305,7 @@ export function TournamentProvider({
       setPlayers(state.players);
       setTournament(state.tournament);
       setKnockout(state.knockout);
+      setSingles(state.singles ?? null);
       setGameCode(code.toUpperCase());
       return null;
     },
@@ -429,6 +471,54 @@ export function TournamentProvider({
     []
   );
 
+  // ── Singles match operations ──────────────────────────────────
+
+  const singlesAdjust = useCallback(
+    (matchIdx: number, side: 1 | 2, delta: number) => {
+      setSingles((prev) => {
+        if (!prev) return prev;
+        const newMatches = prev.matches.map((m, mi) => {
+          if (mi !== matchIdx) return m;
+          const updated: SinglesMatch = { ...m };
+          if (side === 1)
+            updated.score1 = Math.max(0, updated.score1 + delta);
+          else updated.score2 = Math.max(0, updated.score2 + delta);
+          return updated;
+        });
+        return { ...prev, matches: newMatches };
+      });
+    },
+    []
+  );
+
+  const singlesLock = useCallback(
+    (matchIdx: number) => {
+      setSingles((prev) => {
+        if (!prev) return prev;
+        const newMatches = prev.matches.map((m, mi) => {
+          if (mi !== matchIdx) return m;
+          return { ...m, locked: true };
+        });
+        return { ...prev, matches: newMatches };
+      });
+    },
+    []
+  );
+
+  const singlesUnlock = useCallback(
+    (matchIdx: number) => {
+      setSingles((prev) => {
+        if (!prev) return prev;
+        const newMatches = prev.matches.map((m, mi) => {
+          if (mi !== matchIdx) return m;
+          return { ...m, locked: false };
+        });
+        return { ...prev, matches: newMatches };
+      });
+    },
+    []
+  );
+
   // ── Derived ───────────────────────────────────────────────────
 
   const standings = useMemo(() => {
@@ -436,9 +526,24 @@ export function TournamentProvider({
     return computePoints(tournament);
   }, [tournament]);
 
+  const singlesStandings = useMemo(() => {
+    if (!singles) return [];
+    return computeSinglesStandings(singles);
+  }, [singles]);
+
   const showToast = useCallback(() => {
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 1800);
+  }, []);
+
+  // ── Reset ──────────────────────────────────────────────────────
+
+  const resetGame = useCallback(() => {
+    setTournament(null);
+    setKnockout(null);
+    setSingles(null);
+    setGameCode(null);
+    setMeetingsCountRaw(1);
   }, []);
 
   // ── Value ─────────────────────────────────────────────────────
@@ -447,6 +552,9 @@ export function TournamentProvider({
     () => ({
       players,
       addPlayer,
+      singles,
+      meetingsCount,
+      setMeetingsCount,
       removePlayer,
       mode,
       setMode,
@@ -460,11 +568,16 @@ export function TournamentProvider({
       koLock,
       koLockBye,
       koUnlock,
+      singlesAdjust,
+      singlesLock,
+      singlesUnlock,
       standings,
+      singlesStandings,
       toastVisible,
       showToast,
       gameCode,
       loadGame,
+      resetGame,
     }),
     [
       players,
@@ -474,6 +587,9 @@ export function TournamentProvider({
       setMode,
       tournament,
       knockout,
+      singles,
+      meetingsCount,
+      setMeetingsCount,
       generate,
       adjustScore,
       lockMatch,
@@ -482,11 +598,16 @@ export function TournamentProvider({
       koLock,
       koLockBye,
       koUnlock,
+      singlesAdjust,
+      singlesLock,
+      singlesUnlock,
       standings,
+      singlesStandings,
       toastVisible,
       showToast,
       gameCode,
       loadGame,
+      resetGame,
     ]
   );
 

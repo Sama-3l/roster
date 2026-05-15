@@ -9,6 +9,8 @@ const MODE_DESC: Record<TournamentMode, string> = {
     "Rotating pairs each round · points from scores accumulate per player",
   knockout:
     "All partnerships play pool matches · top 4 advance to bracket",
+  singles:
+    "1v1 round-robin league · every player plays everyone · W=3 D=1 L=0",
 };
 
 /**
@@ -37,6 +39,14 @@ export function ModeSelector() {
           style={isActive && mode !== "knockout" ? { opacity: 0.35 } : undefined}
         >
           Partnership Knockout
+        </button>
+        <button
+          className={`${styles.modeBtn} ${mode === "singles" ? styles.modeBtnActive : ""}`}
+          onClick={() => setMode("singles")}
+          disabled={isActive}
+          style={isActive && mode !== "singles" ? { opacity: 0.35 } : undefined}
+        >
+          Singles
         </button>
       </div>
       <div className={styles.modeDesc}>{MODE_DESC[mode]}</div>

@@ -16,8 +16,12 @@ export function PlayerInput() {
     removePlayer,
     tournament,
     knockout,
+    singles,
     generate,
     mode,
+    meetingsCount,
+    setMeetingsCount,
+    resetGame,
   } = useTournament();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,8 +29,8 @@ export function PlayerInput() {
 
   const n = players.length;
   const isOdd = n % 2 !== 0;
-  const valid = n >= 4;
-  const isActive = !!tournament || !!knockout;
+  const valid = mode === "singles" ? n >= 2 : n >= 4;
+  const isActive = !!tournament || !!knockout || !!singles;
 
   function handleAdd() {
     const input = inputRef.current;
@@ -71,7 +75,7 @@ export function PlayerInput() {
           )}
         </>
       );
-    } else {
+    } else if (mode === "knockout") {
       // Knockout info
       const effectiveN = isOdd ? n + 1 : n;
       const totalPairs = (effectiveN * (effectiveN - 1)) / 2;
@@ -88,6 +92,25 @@ export function PlayerInput() {
             <span className={styles.byeNote}>· BYE auto-added</span>
           )}
           {n >= 4 && !isOdd && (
+            <span style={{ color: "var(--accent)" }}>· ready!</span>
+          )}
+        </>
+      );
+    } else {
+      // Singles info
+      const baseMatches = n >= 2 ? (n * (n - 1)) / 2 : 0;
+      const totalMatches = baseMatches * meetingsCount;
+      return (
+        <>
+          <span className={styles.count}>{n} players</span>
+          <span>· {totalMatches} matches</span>
+          {meetingsCount > 1 && (
+            <span>· {meetingsCount}× each</span>
+          )}
+          {n < 2 && (
+            <span className={styles.warn}>· need at least 2</span>
+          )}
+          {n >= 2 && (
             <span style={{ color: "var(--accent)" }}>· ready!</span>
           )}
         </>
@@ -115,6 +138,18 @@ export function PlayerInput() {
         >
           + Add
         </button>
+        {isActive && (
+          <button
+            className={styles.btnReset}
+            onClick={() => {
+              if (window.confirm("Reset this game? All scores will be lost.")) {
+                resetGame();
+              }
+            }}
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       <div className={styles.chips}>
@@ -137,6 +172,30 @@ export function PlayerInput() {
       <div className={styles.infoBar} id="infoBar">
         {renderInfoBar()}
       </div>
+
+      {/* Meetings selector (singles only, before generation) */}
+      {mode === "singles" && !isActive && (
+        <div className={styles.meetingsRow}>
+          <span className={styles.meetingsLabel}>Encounters per pair</span>
+          <div className={styles.meetingsStepper}>
+            <button
+              className={styles.meetingsBtn}
+              onClick={() => setMeetingsCount(meetingsCount - 1)}
+              disabled={meetingsCount <= 1}
+            >
+              −
+            </button>
+            <span className={styles.meetingsVal}>{meetingsCount}</span>
+            <button
+              className={styles.meetingsBtn}
+              onClick={() => setMeetingsCount(meetingsCount + 1)}
+              disabled={meetingsCount >= 5}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      )}
 
       <button
         className={styles.btnPrimary}

@@ -44,7 +44,7 @@ export interface Standing {
 
 // ── Knockout-specific types ───────────────────────────────────────
 
-export type TournamentMode = "americano" | "knockout";
+export type TournamentMode = "americano" | "knockout" | "singles";
 
 /** A pool-stage match in a partnership knockout. */
 export interface PoolMatch {
@@ -93,6 +93,35 @@ export interface KnockoutState {
   playoff: Playoff;
 }
 
+// ── Singles-specific types ─────────────────────────────────────────
+
+/** A single 1v1 match in the singles league. */
+export interface SinglesMatch {
+  player1: Player;
+  player2: Player;
+  score1: number;
+  score2: number;
+  locked: boolean;
+}
+
+/** Full singles league state. */
+export interface SinglesState {
+  players: Player[];
+  matches: SinglesMatch[];
+  /** How many times each pair plays (1–5). Default 1. */
+  meetings: number;
+}
+
+/** A row in the singles standings table. */
+export interface SinglesStanding {
+  name: Player;
+  pts: number;
+  w: number;
+  l: number;
+  d: number;
+  matchesPlayed: number;
+}
+
 // ── Persistence ───────────────────────────────────────────────────
 
 /** Serializable snapshot of the entire app state for save/load. */
@@ -101,5 +130,6 @@ export interface GameState {
   players: Player[];
   tournament: Tournament | null;
   knockout: KnockoutState | null;
+  singles: SinglesState | null;
 }
 

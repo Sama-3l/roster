@@ -15,9 +15,9 @@ const unbounded = Unbounded({
 });
 
 export const metadata: Metadata = {
-  title: "Americano | Badminton Tournament Manager",
+  title: "Roster | Badminton Tournament Manager",
   description:
-    "Doubles · Rotating pairs · Individual scoring — Generate round-robin fixtures for Americano-style badminton tournaments.",
+    "Americano · Partnership Knockout · Singles — Generate fixtures, track scores, and manage your badminton tournaments.",
 };
 
 export default function RootLayout({
