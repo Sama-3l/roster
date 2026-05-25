@@ -18,6 +18,9 @@ export function PlayerInput() {
     knockout,
     singles,
     generate,
+    saveAndCreateRoom,
+    savingRoom,
+    gameCode,
     mode,
     meetingsCount,
     setMeetingsCount,
@@ -205,6 +208,25 @@ export function PlayerInput() {
       >
         Generate fixtures
       </button>
+
+      {/* Save & Create Room — shown after fixtures generated, before room code assigned */}
+      {isActive && !gameCode && (
+        <button
+          className={styles.btnSaveRoom}
+          id="saveRoomBtn"
+          onClick={saveAndCreateRoom}
+          disabled={savingRoom}
+        >
+          {savingRoom ? (
+            <>
+              <span className={styles.btnSpinner} />
+              Creating room…
+            </>
+          ) : (
+            "Save & Create Room"
+          )}
+        </button>
+      )}
     </div>
   );
 }

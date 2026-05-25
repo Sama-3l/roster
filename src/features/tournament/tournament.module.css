@@ -171,6 +171,50 @@
   transform: none;
 }
 
+.btnSaveRoom {
+  composes: btn;
+  background: transparent;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  font-weight: 700;
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 0 0 rgba(200, 241, 53, 0);
+  transition: background 0.15s, box-shadow 0.2s, opacity 0.12s, transform 0.1s;
+}
+
+.btnSaveRoom:hover:not(:disabled) {
+  background: rgba(200, 241, 53, 0.07);
+  box-shadow: 0 0 12px 0 rgba(200, 241, 53, 0.18);
+}
+
+.btnSaveRoom:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btnSpinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(200, 241, 53, 0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
 .btnCopy {
   composes: btn;
   background: var(--surface2);

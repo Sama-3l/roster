@@ -61,8 +61,12 @@ interface TournamentContextValue {
   meetingsCount: number;
   setMeetingsCount: (n: number) => void;
 
-  // Generate (dispatches based on mode)
+  // Generate fixtures locally (no DB write)
   generate: () => void;
+
+  // Save to DB + create room code
+  saveAndCreateRoom: () => Promise<void>;
+  savingRoom: boolean;
 
   // Americano match operations
   adjustScore: (
@@ -163,6 +167,7 @@ export function TournamentProvider({
   const [meetingsCount, setMeetingsCountRaw] = useState(1);
   const [toastVisible, setToastVisible] = useState(false);
   const [gameCode, setGameCode] = useState<string | null>(null);
+  const [savingRoom, setSavingRoom] = useState(false);
 
   const setMeetingsCount = useCallback(
     (n: number) => {
@@ -240,14 +245,10 @@ export function TournamentProvider({
 
   // ── Generate ──────────────────────────────────────────────────
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(() => {
     const n = players.length;
     if (mode === "singles" && n < 2) return;
     if (mode !== "singles" && n < 4) return;
-
-    let newTournament: Tournament | null = null;
-    let newKnockout: KnockoutState | null = null;
-    let newSingles: SinglesState | null = null;
 
     if (mode === "americano") {
       const isOdd = n % 2 !== 0;
@@ -261,35 +262,32 @@ export function TournamentProvider({
       if (isOdd) {
         assignByeVolunteers(rounds, players);
       }
-      newTournament = { players: [...players], isOdd, rounds };
-      setTournament(newTournament);
+      setTournament({ players: [...players], isOdd, rounds });
     } else if (mode === "knockout") {
       const ko = generateKnockout(players);
       resolvePlayoffSeeds(ko);
-      newKnockout = ko;
-      setKnockout(newKnockout);
+      setKnockout(ko);
     } else {
       // singles
       const matches = generateSinglesMatches(players, meetingsCount);
-      newSingles = { players: [...players], matches, meetings: meetingsCount };
-      setSingles(newSingles);
+      setSingles({ players: [...players], matches, meetings: meetingsCount });
     }
+  }, [players, mode, meetingsCount]);
 
-    // Create the game on the server and get the code
+  // Save current fixture state to DB and receive a room code
+  const saveAndCreateRoom = useCallback(async () => {
+    if (savingRoom || gameCode) return;
+    setSavingRoom(true);
     try {
-      const state: GameState = {
-        mode,
-        players: [...players],
-        tournament: newTournament,
-        knockout: newKnockout,
-        singles: newSingles,
-      };
+      const state = getGameState();
       const code = await apiCreate(state);
       setGameCode(code);
     } catch (err) {
       console.error("Failed to save game:", err);
+    } finally {
+      setSavingRoom(false);
     }
-  }, [players, mode, meetingsCount]);
+  }, [savingRoom, gameCode, getGameState]);
 
   // ── Load game ─────────────────────────────────────────────────
 
@@ -554,6 +552,8 @@ export function TournamentProvider({
       tournament,
       knockout,
       generate,
+      saveAndCreateRoom,
+      savingRoom,
       adjustScore,
       lockMatch,
       unlockMatch,
@@ -584,6 +584,8 @@ export function TournamentProvider({
       meetingsCount,
       setMeetingsCount,
       generate,
+      saveAndCreateRoom,
+      savingRoom,
       adjustScore,
       lockMatch,
       unlockMatch,
