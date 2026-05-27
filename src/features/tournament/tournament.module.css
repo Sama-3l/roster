@@ -1097,3 +1097,219 @@
   border-right: 1px solid var(--border);
   line-height: 32px;
 }
+
+/* ── Tab bar ─────────────────────────────────────────────────────── */
+
+.tabBar {
+  display: flex;
+  gap: 0;
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tabBtn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--muted2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--border);
+}
+
+.tabBtn:last-child {
+  border-right: none;
+}
+
+.tabBtn:hover:not(.tabBtnActive) {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.tabBtnActive {
+  background: var(--surface2);
+  color: var(--text);
+  font-weight: 700;
+  border-bottom: 2px solid var(--accent);
+}
+
+/* ── Games list ──────────────────────────────────────────────────── */
+
+.gamesList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 0.25rem;
+}
+
+.gamesGroupLabel {
+  font-family: var(--font-heading);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted2);
+  margin: 1rem 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.liveDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: livePulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+.gamesItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: background 0.12s, border-color 0.12s;
+  animation: slideIn 0.15s ease;
+}
+
+.gamesItem:hover {
+  background: var(--surface2);
+  border-color: var(--border2);
+}
+
+/* Mode badges */
+
+.modeBadge {
+  font-family: var(--font-heading);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(200, 241, 53, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(200, 241, 53, 0.25);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.modeBadgeKo {
+  composes: modeBadge;
+  background: rgba(167, 139, 250, 0.12);
+  color: var(--playoff);
+  border-color: rgba(167, 139, 250, 0.25);
+}
+
+.modeBadgeSingles {
+  composes: modeBadge;
+  background: rgba(245, 166, 35, 0.12);
+  color: var(--bye);
+  border-color: rgba(245, 166, 35, 0.25);
+}
+
+.gamesItemMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gamesCode {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text);
+}
+
+.gamesSubLine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.gamesPlayerCount {
+  color: var(--muted2);
+}
+
+.gamesDot {
+  color: var(--border2);
+}
+
+.gamesTimestamp {
+  color: var(--muted);
+}
+
+.gamesLoadBtn {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--accent);
+  padding: 6px 12px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 30px;
+}
+
+.gamesLoadBtn:hover:not(:disabled) {
+  background: rgba(200, 241, 53, 0.08);
+  border-color: var(--accent);
+}
+
+.gamesLoadBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gamesEmpty {
+  padding: 2rem 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.gamesSkeleton {
+  height: 58px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
