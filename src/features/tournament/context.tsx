@@ -108,6 +108,10 @@ interface TournamentContextValue {
 
   // Reset
   resetGame: () => void;
+
+  // Match ending
+  ended: boolean;
+  completeMatch: () => Promise<void>;
 }
 
 const TournamentContext = createContext<TournamentContextValue | null>(null);
@@ -168,6 +172,7 @@ export function TournamentProvider({
   const [toastVisible, setToastVisible] = useState(false);
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [savingRoom, setSavingRoom] = useState(false);
+  const [ended, setEnded] = useState<boolean>(false);
 
   const setMeetingsCount = useCallback(
     (n: number) => {
@@ -188,7 +193,8 @@ export function TournamentProvider({
     tournament,
     knockout,
     singles,
-  }), [mode, players, tournament, knockout, singles]);
+    ended,
+  }), [mode, players, tournament, knockout, singles, ended]);
 
   // Debounced persist: fires whenever state changes
   useEffect(() => {
@@ -304,6 +310,7 @@ export function TournamentProvider({
       setTournament(state.tournament);
       setKnockout(state.knockout);
       setSingles(state.singles ?? null);
+      setEnded(state.ended ?? false);
       setGameCode(code.toUpperCase());
       return null;
     },
@@ -527,12 +534,55 @@ export function TournamentProvider({
     setTimeout(() => setToastVisible(false), 1800);
   }, []);
 
+  const completeMatch = useCallback(async () => {
+    if (ended) return;
+    const ok = window.confirm("Are u sure?");
+    if (!ok) return;
+
+    setEnded(true);
+
+    try {
+      let statsPayload: { playerName: string; points: number; matches: number }[] = [];
+      if (mode === "americano" && standings) {
+        statsPayload = standings.map((s) => ({
+          playerName: s.name,
+          points: s.pts,
+          matches: s.matchesPlayed || 0,
+        }));
+      } else if (mode === "knockout" && knockout) {
+        const koStandings = computeKnockoutPoints(knockout);
+        statsPayload = koStandings.map((s) => ({
+          playerName: s.name,
+          points: s.pts,
+          matches: s.w + s.l + s.d,
+        }));
+      } else if (mode === "singles" && singlesStandings) {
+        statsPayload = singlesStandings.map((s) => ({
+          playerName: s.name,
+          points: s.pts,
+          matches: s.matchesPlayed || 0,
+        }));
+      }
+
+      if (statsPayload.length > 0) {
+        await fetch("/api/stats", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stats: statsPayload }),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update stats on complete match:", err);
+    }
+  }, [ended, mode, standings, knockout, singlesStandings]);
+
   // ── Reset ──────────────────────────────────────────────────────
 
   const resetGame = useCallback(() => {
     setTournament(null);
     setKnockout(null);
     setSingles(null);
+    setEnded(false);
     setGameCode(null);
     setMeetingsCountRaw(1);
   }, []);
@@ -571,6 +621,8 @@ export function TournamentProvider({
       gameCode,
       loadGame,
       resetGame,
+      ended,
+      completeMatch,
     }),
     [
       players,
@@ -603,6 +655,8 @@ export function TournamentProvider({
       gameCode,
       loadGame,
       resetGame,
+      ended,
+      completeMatch,
     ]
   );
 

@@ -9,7 +9,7 @@ import styles from "./tournament.module.css";
  * Shows qualified (top 4) rows with purple highlight.
  */
 export function KnockoutStandings() {
-  const { knockout, showToast } = useTournament();
+  const { knockout, showToast, ended, completeMatch } = useTournament();
   if (!knockout) return null;
 
   const standings = computeKnockoutPoints(knockout);
@@ -30,23 +30,6 @@ export function KnockoutStandings() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-
-    // Save stats to database
-    try {
-      const statsPayload = standings.map((s) => ({
-        playerName: s.name,
-        points: s.pts,
-        matches: s.w + s.l + s.d, // Total matches played
-      }));
-      await fetch("/api/stats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats: statsPayload }),
-      });
-    } catch (err) {
-      console.error("Failed to update stats:", err);
-    }
-
     showToast();
   }
 
@@ -79,7 +62,19 @@ export function KnockoutStandings() {
           );
         })}
       </div>
-      <button className={styles.btnCopy} onClick={handleCopy}>
+      <button
+        className={styles.btnPrimary}
+        onClick={completeMatch}
+        disabled={ended}
+        style={{ marginTop: "1.25rem" }}
+      >
+        {ended ? "Match Completed" : "Complete Match"}
+      </button>
+      <button
+        className={styles.btnCopy}
+        onClick={handleCopy}
+        style={{ marginTop: "0.75rem" }}
+      >
         Copy standings
       </button>
     </div>

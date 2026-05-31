@@ -9,7 +9,7 @@ import styles from "./tournament.module.css";
  * Only visible when at least one match has points.
  */
 export function PointsTable() {
-  const { standings, showToast } = useTournament();
+  const { standings, showToast, ended, completeMatch } = useTournament();
 
   const hasAny = standings.some((s) => s.pts > 0);
   if (!hasAny) return null;
@@ -19,23 +19,6 @@ export function PointsTable() {
       .map((s) => `${s.name} - ${s.pts} points`)
       .join("\n");
     await copyToClipboard(text);
-
-    // Save stats to database
-    try {
-      const statsPayload = standings.map((s) => ({
-        playerName: s.name,
-        points: s.pts,
-        matches: s.matchesPlayed || 0,
-      }));
-      await fetch("/api/stats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats: statsPayload }),
-      });
-    } catch (err) {
-      console.error("Failed to update stats:", err);
-    }
-
     showToast();
   }
 
@@ -57,9 +40,18 @@ export function PointsTable() {
         ))}
       </div>
       <button
+        className={styles.btnPrimary}
+        onClick={completeMatch}
+        disabled={ended}
+        style={{ marginTop: "1.25rem" }}
+      >
+        {ended ? "Match Completed" : "Complete Match"}
+      </button>
+      <button
         className={styles.btnCopy}
         id="copyBtn"
         onClick={handleCopy}
+        style={{ marginTop: "0.75rem" }}
       >
         Copy points table
       </button>

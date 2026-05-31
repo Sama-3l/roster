@@ -131,5 +131,6 @@ export interface GameState {
   tournament: Tournament | null;
   knockout: KnockoutState | null;
   singles: SinglesState | null;
+  ended?: boolean;
 }
 

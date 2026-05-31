@@ -9,7 +9,7 @@ import styles from "./tournament.module.css";
  * Highlights the leader. Copy-to-clipboard support.
  */
 export function SinglesStandings() {
-  const { singlesStandings, showToast } = useTournament();
+  const { singlesStandings, showToast, ended, completeMatch } = useTournament();
 
   const hasAny = singlesStandings.some((s) => s.pts > 0);
   if (!hasAny) return null;
@@ -22,23 +22,6 @@ export function SinglesStandings() {
       )
       .join("\n");
     await copyToClipboard(text);
-
-    // Save stats to database
-    try {
-      const statsPayload = singlesStandings.map((s) => ({
-        playerName: s.name,
-        points: s.pts,
-        matches: s.matchesPlayed || 0,
-      }));
-      await fetch("/api/stats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats: statsPayload }),
-      });
-    } catch (err) {
-      console.error("Failed to update stats:", err);
-    }
-
     showToast();
   }
 
@@ -73,7 +56,19 @@ export function SinglesStandings() {
           </div>
         ))}
       </div>
-      <button className={styles.btnCopy} onClick={handleCopy}>
+      <button
+        className={styles.btnPrimary}
+        onClick={completeMatch}
+        disabled={ended}
+        style={{ marginTop: "1.25rem" }}
+      >
+        {ended ? "Match Completed" : "Complete Match"}
+      </button>
+      <button
+        className={styles.btnCopy}
+        onClick={handleCopy}
+        style={{ marginTop: "0.75rem" }}
+      >
         Copy standings
       </button>
     </div>
